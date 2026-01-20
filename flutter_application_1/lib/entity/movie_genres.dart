@@ -16,13 +16,5 @@ class MovieGenres {
       "genreID": genreID
     };
   }
-
-  factory MovieGenres.fromMap(Map<String, dynamic> map) {
-    return MovieGenres(
-      id: map['id'] as int?,
-      movieID: map['movieID'] as int,
-      genreID: map['genreID'] as int,
-    );
-  }
 }
 

@@ -9,15 +9,15 @@ class ConfigureMovieScreen extends StatefulWidget {
   const ConfigureMovieScreen({super.key, this.movieId});
 
   @override
-  State<ConfigureMovieScreen> createState() => _ConfigureMovieScreenState();
+  State<ConfigureMovieScreen> createState() => ConfigureMovieScreenState();
 }
 
-class _ConfigureMovieScreenState extends State<ConfigureMovieScreen> {
+class ConfigureMovieScreenState extends State<ConfigureMovieScreen> {
   final __formKey = GlobalKey<FormState>();
   final __titleController = TextEditingController();
   final __yearController = TextEditingController();
   final __genreController = TextEditingController();
-  final DatabaseHelper _dbHelper = DatabaseHelper.instance;
+  final DatabaseHelper __dbHelper = DatabaseHelper.instance;
   bool __isLoading = false;
 
   @override
@@ -43,7 +43,7 @@ class _ConfigureMovieScreenState extends State<ConfigureMovieScreen> {
     });
 
     if (widget.movieId != null) {
-      MovieModel? movieModel = await _dbHelper.getMovieModel(widget.movieId!);
+      MovieModel? movieModel = await __dbHelper.getMovieModel(widget.movieId!);
 
       setState(() {
         __titleController.text = movieModel?.title ?? '';
@@ -85,15 +85,15 @@ class _ConfigureMovieScreenState extends State<ConfigureMovieScreen> {
       //Inserting/editing movie
       int movieID;
       if (widget.movieId == null) {
-        movieID = await _dbHelper.insertMovie(movie);
+        movieID = await __dbHelper.insertMovie(movie);
       } else {
-        await _dbHelper.updateMovie(movie);
+        await __dbHelper.updateMovie(movie);
         movieID = widget.movieId!;
       }
 
       //Appending genres
       for (var genre in genres) {
-        await _dbHelper.appendGenreToMovie(movieID, genre);
+        await __dbHelper.appendGenreToMovie(movieID, genre);
       }
 
       if (mounted) {

@@ -11,8 +11,4 @@ class Genre {
   factory Genre.fromMap(Map<String, dynamic> map) {
     return Genre(id: map['id'] as int?, name: map["name"] as String);
   }
-
-  Genre copyWith({String? newName}) {
-    return Genre(name: newName ?? name);
-  }
 }
