@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'utils/theme_helper.dart';
 import 'screens/movies_list_screen.dart';
 
 void main() async {
@@ -30,15 +29,6 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _loadTheme();
-  }
-
-  Future<void> _loadTheme() async {
-    final isDark = await ThemeHelper.isDarkMode();
-    setState(() {
-      _isDarkMode = isDark;
-      _isLoading = false;
-    });
   }
 
   void _updateTheme(bool isDark) {
