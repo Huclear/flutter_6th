@@ -1,35 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/models/movie_model.dart';
+import 'package:flutter_application_1/screens/movie_info_screen.dart';
 import '../database/database_helper.dart';
 import 'configure_movie_screen.dart';
 
 class MoviesListScreen extends StatefulWidget {
-  final Function(bool)? onThemeChanged;
 
-  const MoviesListScreen({super.key, this.onThemeChanged});
+  const MoviesListScreen({super.key});
 
   @override
   State<MoviesListScreen> createState() => _MoviesListScreenState();
 }
 
 class _MoviesListScreenState extends State<MoviesListScreen> {
-  final DatabaseHelper _dbHelper = DatabaseHelper.instance;
-  List<MovieModel> _movies = [];
+  final DatabaseHelper __dbHelper = DatabaseHelper.instance;
+  List<MovieModel> __movies = [];
 
   @override
   void initState() {
     super.initState();
-    _loadMovies();
+    __loadMovies();
   }
 
-  Future<void> _loadMovies() async {
-    final movies = await _dbHelper.getAllMovies();
+  Future<void> __loadMovies() async {
+    final movies = await __dbHelper.getAllMovies();
     setState(() {
-      _movies = movies;
+      __movies = movies;
     });
   }
 
-  void _navigateToAddEditScreen(int? movieID) async {
+  Future<void> __deleteMovie(int movieId) async {
+    await __dbHelper.deleteMovie(movieId);
+    await __loadMovies();
+  }
+
+  void __navigateToAddEditScreen(int? movieID) async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -38,7 +43,20 @@ class _MoviesListScreenState extends State<MoviesListScreen> {
     );
 
     if (result == true) {
-      _loadMovies();
+      __loadMovies();
+    }
+  }
+
+  void __navigateToInfoScreen(int movieID) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MovieInfoScreen(movieId: movieID),
+      ),
+    );
+
+    if (result == true) {
+      __loadMovies();
     }
   }
 
@@ -48,7 +66,7 @@ class _MoviesListScreenState extends State<MoviesListScreen> {
       appBar: AppBar(
         title: const Text('My favourite movies'),
       ),
-      body: _movies.isEmpty
+      body: __movies.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -68,9 +86,9 @@ class _MoviesListScreenState extends State<MoviesListScreen> {
               ),
             )
           : ListView.builder(
-              itemCount: _movies.length,
+              itemCount: __movies.length,
               itemBuilder: (context, index) {
-                final movie = _movies[index];
+                final movie = __movies[index];
                 return Card(
                   margin: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -104,17 +122,23 @@ class _MoviesListScreenState extends State<MoviesListScreen> {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.edit),
-                          onPressed: () => _navigateToAddEditScreen(movie.id),
+                          onPressed: () => __navigateToAddEditScreen(movie.id),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () {
+                            __deleteMovie(movie.id!);
+                          },
                         ),
                       ],
                     ),
-                    onTap: () => _navigateToAddEditScreen(movie.id),
+                    onTap: () => __navigateToInfoScreen(movie.id!),
                   ),
                 );
               },
             ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _navigateToAddEditScreen(null),
+        onPressed: () => __navigateToAddEditScreen(null),
         child: const Icon(Icons.add),
       ),
     );

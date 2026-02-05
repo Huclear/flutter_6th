@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_application_1/entity/attachment.dart';
 import '../entity/movie.dart';
 import '../database/database_helper.dart';
 import '../models/movie_model.dart';
@@ -17,8 +19,13 @@ class ConfigureMovieScreenState extends State<ConfigureMovieScreen> {
   final __titleController = TextEditingController();
   final __yearController = TextEditingController();
   final __genreController = TextEditingController();
+  final __linkController = TextEditingController();
+  int __selectedType = 0;
   final DatabaseHelper __dbHelper = DatabaseHelper.instance;
   bool __isLoading = false;
+  List<Attachment> __initialAttachments = [];
+  List<Attachment> __insertedAttachments = [];
+  List<int> __deletedAttachmentsIds = [];
 
   @override
   void initState() {
@@ -34,6 +41,7 @@ class ConfigureMovieScreenState extends State<ConfigureMovieScreen> {
     __titleController.dispose();
     __yearController.dispose();
     __genreController.dispose();
+    __linkController.dispose();
     super.dispose();
   }
 
@@ -44,17 +52,19 @@ class ConfigureMovieScreenState extends State<ConfigureMovieScreen> {
 
     if (widget.movieId != null) {
       MovieModel? movieModel = await __dbHelper.getMovieModel(widget.movieId!);
+      var attachments = await __dbHelper.getAttachments(widget.movieId!, null);
 
       setState(() {
         __titleController.text = movieModel?.title ?? '';
         __yearController.text = movieModel?.yearPublished?.toString() ?? '2025';
         __genreController.text = movieModel?.genres.join(", ") ?? '';
         __isLoading = false;
+        __initialAttachments = attachments;
       });
     }
   }
 
-  Future<void> _saveMovie() async {
+  Future<void> __saveMovie() async {
     if (!__formKey.currentState!.validate()) {
       return;
     }
@@ -96,6 +106,17 @@ class ConfigureMovieScreenState extends State<ConfigureMovieScreen> {
         await __dbHelper.appendGenreToMovie(movieID, genre);
       }
 
+      //Appending attachments
+      for (var attachmentToDelete in __deletedAttachmentsIds) {
+        await __dbHelper.deleteAttachment(attachmentToDelete);
+      }
+
+      for (var attachmentToInsert in __insertedAttachments) {
+        attachmentToInsert.movieId = movieID;
+        await __dbHelper.insertAttachment(attachmentToInsert);
+      }
+
+      //other stuff
       if (mounted) {
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -119,6 +140,22 @@ class ConfigureMovieScreenState extends State<ConfigureMovieScreen> {
         });
       }
     }
+  }
+
+  Future<void> __addAttachment() async {
+    final linkText = __linkController.text.trim();
+    if (linkText.isEmpty || ![1, 2, 3].contains(__selectedType)) {
+      return;
+    }
+    final attachment = Attachment(
+      attachmentType: __selectedType,
+      link: linkText,
+      movieId: widget.movieId ?? -1,
+    );
+    setState(() {
+      __insertedAttachments.add(attachment);
+      __initialAttachments.add(attachment);
+    });
   }
 
   @override
@@ -182,9 +219,126 @@ class ConfigureMovieScreenState extends State<ConfigureMovieScreen> {
                         prefixIcon: Icon(Icons.theater_comedy_rounded),
                       ),
                     ),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Flexible(
+                          flex: 2,
+                          child: DropdownButton(
+                            hint: Text("Select attachment type"),
+                            items: [
+                              DropdownMenuItem(value: 1, child: Text("Image")),
+                              DropdownMenuItem(value: 2, child: Text("Audio")),
+                              DropdownMenuItem(value: 3, child: Text("Video")),
+                            ],
+                            onChanged: (int? selectedType) {
+                              setState(() {
+                                __selectedType = selectedType ?? 0;
+                              });
+                            },
+                          ),
+                        ),
+                        Flexible(
+                          flex: 4,
+                          child: TextFormField(
+                            controller: __linkController,
+                            decoration: const InputDecoration(
+                              labelText: 'Link',
+                              hintText: 'Enter resource link \', \'',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.theater_comedy_rounded),
+                            ),
+                          ),
+                        ),
+
+                        Flexible(
+                          flex: 1,
+                          child: ElevatedButton(
+                            onPressed: __addAttachment,
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            child: const Text(
+                              'Save',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    if (__initialAttachments.isNotEmpty)
+                      SizedBox(
+                        height: 300,
+                        child: ListView.builder(
+                          itemCount: __initialAttachments.length,
+                          itemBuilder: (context, index) {
+                            final attachment = __initialAttachments[index];
+                            return Card(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              child: ListTile(
+                                leading: Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.movie),
+                                ),
+                                title: Text(
+                                  attachment.attachmentType == 1
+                                      ? "Image "
+                                      : (attachment.attachmentType == 2
+                                                ? "Audio "
+                                                : "Video ") +
+                                            (attachment.id?.toString() ??
+                                                "pending"),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [Text(attachment.link)],
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.delete),
+                                      onPressed: () {
+                                        setState(() {
+                                          __initialAttachments.remove(
+                                            attachment,
+                                          );
+                                          if (attachment.id == null) {
+                                            __insertedAttachments.remove(
+                                              attachment,
+                                            );
+                                          } else {
+                                            __deletedAttachmentsIds.add(
+                                              attachment.id!,
+                                            );
+                                          }
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+
                     const SizedBox(height: 24),
                     ElevatedButton(
-                      onPressed: _saveMovie,
+                      onPressed: __saveMovie,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),

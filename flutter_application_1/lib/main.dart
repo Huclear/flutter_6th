@@ -5,8 +5,7 @@ import 'screens/movies_list_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Инициализация sqflite для десктопных платформ
+
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
@@ -23,30 +22,14 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  bool _isDarkMode = false;
-  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
   }
 
-  void _updateTheme(bool isDark) {
-    setState(() {
-      _isDarkMode = isDark;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const MaterialApp(
-        home: Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
-
     return MaterialApp(
       title: 'Мини кинопоиск',
       theme: ThemeData(
@@ -63,11 +46,9 @@ class _MyAppState extends State<MyApp> {
         ),
         useMaterial3: true,
       ),
-      themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
+      themeMode:ThemeMode.dark,
       home: Builder(
-        builder: (context) => MoviesListScreen(
-          onThemeChanged: _updateTheme,
-        ),
+        builder: (context) => MoviesListScreen(),
       ),
       debugShowCheckedModeBanner: false,
     );

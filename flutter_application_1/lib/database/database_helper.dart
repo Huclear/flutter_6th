@@ -1,3 +1,4 @@
+import 'package:flutter_application_1/entity/attachment.dart';
 import 'package:flutter_application_1/entity/genre.dart';
 import 'package:flutter_application_1/models/movie_model.dart';
 import 'package:sqflite/sqflite.dart';
@@ -40,6 +41,14 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         movieID INTEGER NOT NULL REFERENCES movies(id),
         genreID INTEGER NOT NULL REFERENCES genres(id)
+      );
+
+      CREATE TABLE movie_attachments(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        movieID INTEGER NOT NULL REFERENCES movies(id),
+        attachmentType INTEGER NOT NULL CHECK(attachmentType > 0 AND attachmentType <= 3),
+        link TEXT NOT NULL,
+        UNIQUE(movieID, link)
       );
     ''');
   }
@@ -145,6 +154,16 @@ SELECT m.*, json_group_array(g.name) as "genres"
     });
   }
 
+  Future<void> deleteMovie(int movieId) async {
+    final db = await database;
+    await db.rawDelete(
+      '''DELETE FROM movie_genres WHERE movieID = ?''',
+      [movieId],
+    );
+
+    await db.rawDelete('''DELETE FROM movies WHERE id = ?''', [movieId]);
+  }
+
   Future<void> setMovieFilters(int movieID, List<String> genreNames) async {
     final db = await database;
     await db.rawDelete(
@@ -166,6 +185,48 @@ DELETE FROM movie_genres WHERE movieID = ?
 
       await db.insert('movie_genres', {'genreID': genreID, 'movieID': movieID});
     }
+  }
+
+  Future<List<Attachment>> getAttachments(
+    int? movieID,
+    int? attachmentType,
+  ) async {
+    final db = await database;
+
+    final result = await db.rawQuery(
+      '''
+  SELECT * FROM movie_attachments AS ma WHERE
+  (? IS NULL OR ma.movieID = ?) AND
+  (? IS NULL OR ma.attachmentType = ?);
+''',
+      [movieID, movieID, attachmentType, attachmentType],
+    );
+
+    return result
+        .map(
+          (element) => Attachment(
+            id: element["id"] as int,
+            attachmentType: element["attachmentType"] as int,
+            link: element["link"] as String,
+            movieId: element["movieID"] as int,
+          ),
+        )
+        .toList();
+  }
+
+  Future<void> deleteAttachment(int id) async {
+    final db = await database;
+    await db.rawDelete("DELETE FROM movie_attachments WHERE id = ?", [id]);
+  }
+
+  Future<int> insertAttachment(Attachment attachment) async {
+    final db = await database;
+    return await db.insert("movie_attachments", {
+      'id':attachment.id,
+      'movieID':attachment.movieId,
+      'attachmentType':attachment.attachmentType,
+      'link':attachment.link,
+    });
   }
 
   Future<void> close() async {
