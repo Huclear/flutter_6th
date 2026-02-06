@@ -5,6 +5,7 @@ import 'package:flutter_application_1/entity/attachment.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:video_player/video_player.dart';
+import 'package:video_player_win/video_player_win.dart';
 import '../database/database_helper.dart';
 import '../models/movie_model.dart';
 
@@ -27,7 +28,7 @@ class MovieInfoScreenState extends State<MovieInfoScreen> {
   final AudioPlayer __audioPlayer = AudioPlayer();
   bool __isPlaying = false;
 
-  VideoPlayerController? __videoController;
+  WinVideoPlayerController? __videoController;
   int? __attachmentPlayed;
   double __sliderValueAudio = 0.0;
   double __durationValue = 0.0;
@@ -112,18 +113,16 @@ class MovieInfoScreenState extends State<MovieInfoScreen> {
           __isPlaying = true;
         });
       } else if (attachmentType == 3) {
-        __videoController =
-            link.startsWith("http")
-                  ? VideoPlayerController.networkUrl(Uri.parse(link))
-                  : VideoPlayerController.file(File(link))
-              ..initialize().then((_) {
-                setState(() {
-                  __attachmentPlayed = attachmentPlayed;
-                  __videoController?.addListener(
-                    __updateSliderPositionWithVideoController,
-                  );
-                });
-              });
+        __videoController = link.startsWith("http")
+            ? WinVideoPlayerController.networkUrl(Uri.parse(link))
+            : WinVideoPlayerController.file(File(link));
+        await __videoController?.initialize();
+        setState(() {
+          __attachmentPlayed = attachmentPlayed;
+          __videoController?.addListener(
+            __updateSliderPositionWithVideoController,
+          );
+        });
       }
     } else {
       if (attachmentType == 2) {
@@ -180,7 +179,7 @@ class MovieInfoScreenState extends State<MovieInfoScreen> {
                     Text(__movieModel?.genres.join(", ") ?? "Genres not found"),
 
                     SizedBox(
-                      height: 300,
+                      height: 600,
                       child: ListView.builder(
                         itemCount: __initialAttachments.length,
                         itemBuilder: (context, index) {
@@ -219,6 +218,8 @@ class MovieInfoScreenState extends State<MovieInfoScreen> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(attachment.link ?? attachment.path!),
+                                      if (attachment.addressAdded != null)
+                                        Text(attachment.addressAdded!),
                                     ],
                                   ),
                                 ),
@@ -292,7 +293,7 @@ class MovieInfoScreenState extends State<MovieInfoScreen> {
                                                 aspectRatio: __videoController!
                                                     .value
                                                     .aspectRatio,
-                                                child: VideoPlayer(
+                                                child: WinVideoPlayer(
                                                   __videoController!,
                                                 ),
                                               )
