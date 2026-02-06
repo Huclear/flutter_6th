@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/entity/attachment.dart';
 import 'package:just_audio/just_audio.dart';
@@ -88,26 +90,40 @@ class MovieInfoScreenState extends State<MovieInfoScreen> {
       __videoController = null;
       if (__audioPlayer.playing) {
         __audioPlayer.stop();
-        __audioPlayer.seek(Duration.zero);
       }
 
       if (attachmentType == 2) {
-        await __audioPlayer.setUrl(link);
+        if (link.startsWith("http")) {
+          await __audioPlayer.setUrl(
+            link,
+            preload: false,
+            initialPosition: Duration.zero,
+          );
+        } else {
+          __audioPlayer.setFilePath(
+            link,
+            preload: false,
+            initialPosition: Duration.zero,
+          );
+        }
         __audioPlayer.play();
         setState(() {
           __attachmentPlayed = attachmentPlayed;
           __isPlaying = true;
         });
       } else if (attachmentType == 3) {
-        __videoController = VideoPlayerController.networkUrl(Uri.parse(link))
-          ..initialize().then((_) {
-            setState(() {
-              __attachmentPlayed = attachmentPlayed;
-              __videoController?.addListener(
-                __updateSliderPositionWithVideoController,
-              );
-            });
-          });
+        __videoController =
+            link.startsWith("http")
+                  ? VideoPlayerController.networkUrl(Uri.parse(link))
+                  : VideoPlayerController.file(File(link))
+              ..initialize().then((_) {
+                setState(() {
+                  __attachmentPlayed = attachmentPlayed;
+                  __videoController?.addListener(
+                    __updateSliderPositionWithVideoController,
+                  );
+                });
+              });
       }
     } else {
       if (attachmentType == 2) {
@@ -201,7 +217,9 @@ class MovieInfoScreenState extends State<MovieInfoScreen> {
                                   subtitle: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
-                                    children: [Text(attachment.link)],
+                                    children: [
+                                      Text(attachment.link ?? attachment.path!),
+                                    ],
                                   ),
                                 ),
                                 if (attachment.attachmentType == 1)
@@ -210,9 +228,9 @@ class MovieInfoScreenState extends State<MovieInfoScreen> {
                                     width: 64,
                                     child: PhotoView(
                                       customSize: Size(64, 64),
-                                      imageProvider: NetworkImage(
-                                        attachment.link,
-                                      ),
+                                      imageProvider: attachment.link == null
+                                          ? FileImage(File(attachment.path!))
+                                          : NetworkImage(attachment.link!),
                                       minScale:
                                           PhotoViewComputedScale.contained *
                                           0.8,
@@ -249,7 +267,7 @@ class MovieInfoScreenState extends State<MovieInfoScreen> {
                                           __togglePlayBack(
                                             attachment.id!,
                                             attachment.attachmentType,
-                                            attachment.link,
+                                            attachment.link ?? attachment.path!,
                                           );
                                         },
                                         style: ElevatedButton.styleFrom(
@@ -311,7 +329,8 @@ class MovieInfoScreenState extends State<MovieInfoScreen> {
                                               __togglePlayBack(
                                                 attachment.id!,
                                                 attachment.attachmentType,
-                                                attachment.link,
+                                                attachment.link ??
+                                                    attachment.path!,
                                               );
                                             },
                                             style: ElevatedButton.styleFrom(

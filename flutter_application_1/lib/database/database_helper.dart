@@ -47,8 +47,11 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         movieID INTEGER NOT NULL REFERENCES movies(id),
         attachmentType INTEGER NOT NULL CHECK(attachmentType > 0 AND attachmentType <= 3),
-        link TEXT NOT NULL,
-        UNIQUE(movieID, link)
+        link TEXT,
+        path TEXT,
+        addressAdded TEXT,
+        UNIQUE(movieID, link),
+        CHECK(link IS NOT NULL OR path IS NOT NULL)
       );
     ''');
   }
@@ -207,7 +210,9 @@ DELETE FROM movie_genres WHERE movieID = ?
           (element) => Attachment(
             id: element["id"] as int,
             attachmentType: element["attachmentType"] as int,
-            link: element["link"] as String,
+            link: element["link"] as String?,
+            path: element["path"] as String?,
+            addressAdded: element["addressAdded"] as String?,
             movieId: element["movieID"] as int,
           ),
         )
@@ -226,6 +231,7 @@ DELETE FROM movie_genres WHERE movieID = ?
       'movieID':attachment.movieId,
       'attachmentType':attachment.attachmentType,
       'link':attachment.link,
+      'path':attachment.path,
     });
   }
 

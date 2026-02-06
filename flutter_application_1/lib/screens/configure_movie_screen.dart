@@ -1,9 +1,14 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_application_1/entity/attachment.dart';
+import 'package:location/location.dart';
+import 'package:path_provider/path_provider.dart';
 import '../entity/movie.dart';
 import '../database/database_helper.dart';
 import '../models/movie_model.dart';
+import 'package:path/path.dart' as p;
 
 class ConfigureMovieScreen extends StatefulWidget {
   final int? movieId;
@@ -20,12 +25,16 @@ class ConfigureMovieScreenState extends State<ConfigureMovieScreen> {
   final __yearController = TextEditingController();
   final __genreController = TextEditingController();
   final __linkController = TextEditingController();
-  int __selectedType = 0;
+  String? __filePath;
+  String? __currentAddress;
+  int __selectedType = 1;
   final DatabaseHelper __dbHelper = DatabaseHelper.instance;
   bool __isLoading = false;
   List<Attachment> __initialAttachments = [];
   List<Attachment> __insertedAttachments = [];
   List<int> __deletedAttachmentsIds = [];
+
+  final __location = Location();
 
   @override
   void initState() {
@@ -144,18 +153,85 @@ class ConfigureMovieScreenState extends State<ConfigureMovieScreen> {
 
   Future<void> __addAttachment() async {
     final linkText = __linkController.text.trim();
-    if (linkText.isEmpty || ![1, 2, 3].contains(__selectedType)) {
+    if ((linkText.isEmpty && __filePath == null) ||
+        ![1, 2, 3].contains(__selectedType)) {
       return;
     }
+
+    if (__filePath != null) {
+      String sourceName = p.basename(__filePath!);
+      Directory assetsDir = await getApplicationDocumentsDirectory();
+      File sourceFile = File(__filePath!);
+      try {
+        File newFile = await sourceFile.copy("${assetsDir.path}\\$sourceName");
+        setState(() {
+          __filePath = newFile.path;
+        });
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            __isLoading = false;
+          });
+        }
+      }
+    }
+
     final attachment = Attachment(
       attachmentType: __selectedType,
-      link: linkText,
+      link: __filePath == null ? linkText : null,
+      path: __filePath,
       movieId: widget.movieId ?? -1,
+      addressAdded: __currentAddress
     );
     setState(() {
       __insertedAttachments.add(attachment);
       __initialAttachments.add(attachment);
+      __filePath = null;
     });
+  }
+
+  Future<void> __pickFile(int attachmentType) async {
+    FilePickerResult? res = await FilePicker.platform.pickFiles(
+      type: attachmentType == 1
+          ? FileType.image
+          : (attachmentType == 2 ? FileType.audio : FileType.video),
+      allowMultiple: false,
+    );
+
+    if (res != null) {
+      setState(() {
+        __filePath = res.files.first.path;
+      });
+    }
+  }
+
+  Future<void> __updateLocation() async {
+    if ((await __location.serviceEnabled())) {
+      var curLoc = await __location.getLocation();
+      __currentAddress = "lat: ${curLoc.latitude}; lon: ${curLoc.longitude}";
+    } else {
+      PermissionStatus status = await __location.requestPermission();
+      if (status != PermissionStatus.granted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Ошибка: Разрешение на доступ к геолокации не выдано',
+              ),
+            ),
+          );
+        }
+      } else {
+        var curLoc = await __location.getLocation();
+        __currentAddress = "lat: ${curLoc.latitude}; lon: ${curLoc.longitude}";
+      }
+    }
   }
 
   @override
@@ -224,7 +300,7 @@ class ConfigureMovieScreenState extends State<ConfigureMovieScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         Flexible(
-                          flex: 2,
+                          flex: 3,
                           child: DropdownButton(
                             hint: Text("Select attachment type"),
                             items: [
@@ -240,16 +316,20 @@ class ConfigureMovieScreenState extends State<ConfigureMovieScreen> {
                           ),
                         ),
                         Flexible(
-                          flex: 4,
-                          child: TextFormField(
-                            controller: __linkController,
-                            decoration: const InputDecoration(
-                              labelText: 'Link',
-                              hintText: 'Enter resource link \', \'',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.theater_comedy_rounded),
-                            ),
-                          ),
+                          flex: 6,
+                          child: __filePath == null
+                              ? TextFormField(
+                                  controller: __linkController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Link',
+                                    hintText: 'Enter resource link \', \'',
+                                    border: OutlineInputBorder(),
+                                    prefixIcon: Icon(
+                                      Icons.theater_comedy_rounded,
+                                    ),
+                                  ),
+                                )
+                              : Text(__filePath!),
                         ),
 
                         Flexible(
@@ -261,6 +341,42 @@ class ConfigureMovieScreenState extends State<ConfigureMovieScreen> {
                             ),
                             child: const Text(
                               'Save',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ),
+                        ),
+                        Flexible(
+                          flex: 1,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              if (__filePath == null) {
+                                __pickFile(__selectedType);
+                              } else {
+                                setState(() {
+                                  __filePath = null;
+                                });
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            child: Text(
+                              __filePath == null ? "Add file" : "Cancel file",
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ),
+                        ),
+                        Flexible(
+                          flex: 1,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              __updateLocation();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            child: const Text(
+                              "Update location",
                               style: TextStyle(fontSize: 16),
                             ),
                           ),
@@ -304,7 +420,9 @@ class ConfigureMovieScreenState extends State<ConfigureMovieScreen> {
                                 ),
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [Text(attachment.link)],
+                                  children: [
+                                    Text(attachment.link ?? attachment.path!),
+                                  ],
                                 ),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
